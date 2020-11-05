@@ -1,0 +1,212 @@
+class led_control
+{
+  private:
+     int led1;
+     int led2;
+     int led3;
+     int led4;
+
+  public:
+    void set_led_ports(int p1,int p2,int p3,int p4)
+    {
+      led1=p1;
+      led2=p2;
+      led3=p3;
+      led4=p4;      
+    }
+
+    void config_leds()
+    {
+      pinMode(led1, OUTPUT);
+      pinMode(led2, OUTPUT);      //definicion de puertos de salida del Arduino
+      pinMode(led3, OUTPUT);
+      pinMode(led4, OUTPUT);
+     }
+
+  void set_led(int led)
+  {
+    switch(led){
+    case 0:
+      led=led4;
+      break;
+    case 1:                 //funcion encargada de encender los leds
+      led=led3;
+      break;
+    case 2:
+      led=led2;
+      break;
+     case 3:
+      led=led1;
+      break;
+    }
+    digitalWrite(led, HIGH);
+   }
+   
+void clear_led(int led)
+  {
+   switch(led){
+    case 0:
+      led=led4;
+      break;
+    case 1:           //funcion encargada de apagar los leds
+      led=led3;
+      break;
+    case 2:
+      led=led2;
+      break;
+     case 3:
+      led=led1;
+      break;
+   }
+    digitalWrite(led, LOW);
+   
+  }
+};
+led_control leds;
+class pines_control
+{
+  private:
+     int entrada1;
+     int entrada2;
+     int entrada3;
+     int entrada4;
+  public:
+    void set_inputs(int in1,int in2,int in3,int in4){
+      entrada1=in1;
+      entrada2=in2;
+      entrada3=in3;
+      entrada4=in4; 
+    }
+    
+ void config_input_pins(){
+  
+      pinMode(entrada1,INPUT);
+      pinMode(entrada2,INPUT);    //definicion de puertos de entrada del Arduino
+      pinMode(entrada3,INPUT);
+      pinMode(entrada4,INPUT);
+     }
+int leer_dipsw(int val){
+    char valor,pin;
+    switch(val){
+      case 0:
+      pin=entrada4;
+      break;
+      case 1:             //funcion encargada de leer los dipsw
+      pin=entrada3;
+      break;
+      case 2:
+      pin=entrada2;
+      break;
+      case 3:
+      pin=entrada1;
+      break;
+    }
+    valor=digitalRead(pin);
+  
+  return valor;
+ }
+};
+pines_control pins;
+
+class tolerancia
+{
+  private:
+     int val1;
+     
+   public:
+   int encontrar_tolerancia(char d0,char d1,char d2){ 
+    char val1=0,dato0=0,dato1=0,dato2=0;
+    if(d0==LOW)
+    dato0=1;
+    else                                    // funcion encargada de encontrar el valor de la tolerancia
+    dato0=0;
+     if(d1==LOW)
+    dato1=2;
+    else
+    dato1=0;
+    if(d2==LOW)
+    dato2=4;
+    else
+    dato2=0;
+    
+    val1=dato0+dato1+dato2;
+    return val1;  
+   }
+};
+tolerancia tol;  
+
+void setup() {
+  Serial.begin(9600);               // configuracion del ADC y puertos de entrada y salida
+  leds.set_led_ports(10,11,12,13);
+  leds.config_leds();
+  pins.set_inputs(4,5,6,7);
+  pins.config_input_pins();
+}
+
+void loop(){
+  int tolerancia=0,Vref=533;
+  float Vmax,Vmin;
+  int val=0;
+  char sw0,sw1,sw2,sw3;
+  sw3=pins.leer_dipsw(3);
+  if(sw3==LOW){
+  while(sw3==LOW){
+    leds.set_led(3);
+    sw3=pins.leer_dipsw(3);    // se leen los dipswitch
+    sw2=pins.leer_dipsw(2);
+    sw1=pins.leer_dipsw(1);
+    sw0=pins.leer_dipsw(0);
+  
+     if(sw2==LOW)
+     leds.set_led(2);
+     else
+     leds.clear_led(2);
+
+     if(sw1==LOW)
+     leds.set_led(1);
+     else
+     leds.clear_led(1);
+
+     if(sw0==LOW)
+     leds.set_led(0);
+     else
+     leds.clear_led(0);
+  }
+  leds.clear_led(1);
+  leds.clear_led(2);
+  leds.clear_led(3);
+  }
+  
+else{
+  leds.clear_led(3);
+  if(sw3==HIGH){  
+  while(sw3==HIGH){
+  sw3=pins.leer_dipsw(3);
+  val=analogRead(0);
+  Serial.println(val);
+  delay(20);
+  
+  sw2=pins.leer_dipsw(2);
+  sw1=pins.leer_dipsw(1); // se leen los dipsw para hallar el valor de a tolerancia
+  sw0=pins.leer_dipsw(0);
+  tolerancia=tol.encontrar_tolerancia(sw0,sw1,sw2); //se almacena el valor de tolerancia calculado
+  
+  Vmax=(Vref+Vref*tolerancia*0.01);  //se encuentra el valor maximo del rango
+  Vmin=(Vref-Vref*tolerancia*0.01); //se encuentra el valor minimo del rango
+  
+  if(val>Vmax)
+  leds.set_led(2);
+  else                // se realiza la comparacion entre el valor del ADC y el rango equivalente
+  leds.clear_led(2);
+  if(val<Vmin)
+  leds.set_led(0);
+  else
+  leds.clear_led(0);
+  if(val>Vmin && val<Vmax)
+  leds.set_led(1); 
+  else
+  leds.clear_led(1);
+  }
+  }
+  }
+}
